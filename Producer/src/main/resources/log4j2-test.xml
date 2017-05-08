@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="off">
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="%d [%p] %c %x - %m%n"/>
+        </Console>
+    </Appenders>
+    <Loggers>
+
+        <Root level="DEBUG">
+            <AppenderRef ref="Console"/>
+        </Root>
+
+        <!-- 减少部分debug日志 -->
+        <logger name="org.springframework" level="INFO"/>
+
+        <!-- 业务debug日志 -->
+        <logger name="com.ml" level="DEBUG"/>
+    </Loggers>
+
+</Configuration>

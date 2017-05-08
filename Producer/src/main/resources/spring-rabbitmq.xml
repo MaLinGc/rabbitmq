@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:rabbit="http://www.springframework.org/schema/rabbit"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd http://www.springframework.org/schema/rabbit http://www.springframework.org/schema/rabbit/spring-rabbit.xsd">
+
+    <context:component-scan base-package="com.ml"/>
+
+    <!--配置connection-factory，指定连接rabbit server参数-->
+    <rabbit:connection-factory id="connectionFactory" host="localhost" username="admin" password="111111"
+                               virtual-host="/test" publisher-returns="true" publisher-confirms="true"/>
+
+    <!--通过指定下面的admin信息，当前producer中的exchange和queue会在rabbitmq服务器上自动生成-->
+    <rabbit:admin connection-factory="connectionFactory"/>
+
+    <!--
+        定义queue
+        1.设置为持久化的队列，queue中的消息会在server本地硬盘存储一份，防止系统crash，数据丢失
+        2.设置为临时队列，queue中的数据在系统重启之后就会丢失
+        3.设置为自动删除的队列，当不存在用户连接到server，队列中的数据会被自动删除
+    -->
+    <rabbit:queue name="confirm_message"/>
+
+    <!--
+        数据通信网络中的交换机，提供消息路由策略
+
+        rabbit:direct-exchange  直接交换器，工作方式类似于单播，Exchange会将消息发送完全匹配ROUTING_KEY的Queue
+        rabbit:topic-exchange   主题交换器，工作方式类似于组播，Exchange会将消息转发和ROUTING_KEY匹配模式相同的所有队列，比如，ROUTING_KEY为user.stock的Message会转发给绑定匹配模式为 * .stock,user.stock， * . * 和#.user.stock.#的队列。（ * 表是匹配一个任意词组，#表示匹配0个或多个词组）
+        rabbit:fanout-exchange  广播是式交换器，不管消息的ROUTING_KEY设置为什么，Exchange都会将消息转发给所有绑定的Queue。
+        rabbit:headers-exchange 消息体的header匹配（ignore）
+    -->
+    <rabbit:direct-exchange name="directExchange">
+        <!--所谓绑定就是将一个特定的 Exchange 和一个特定的 Queue 绑定起来。Exchange 和Queue的绑定可以是多对多的关系。-->
+        <rabbit:bindings>
+            <rabbit:binding queue="confirm_message"></rabbit:binding>
+        </rabbit:bindings>
+    </rabbit:direct-exchange>
+
+    <!--<bean class="org.springframework.amqp.support.converter.Jackson2JsonMessageConverter"/>-->
+
+    <bean id="messageConverter" class="org.springframework.amqp.support.converter.Jackson2JsonMessageConverter">
+        <property name="classMapper">
+            <bean class="org.springframework.amqp.support.converter.DefaultClassMapper">
+                <property name="defaultType" value="com.ml.domain.User"/>
+            </bean>
+        </property>
+    </bean>
+
+    <!--
+        Publisher Confirms and Returns:
+        For returned messages, the template’s mandatory property must be set to true, or the mandatory-expression must evaluate to true for a particular message.
+        This feature requires a CachingConnectionFactory that has its publisherReturns property set to true
+
+        For Publisher Confirms, the template requires a CachingConnectionFactory that has its publisherConfirms property set to true.
+    -->
+    <rabbit:template id="rabbitTemplate" connection-factory="connectionFactory" mandatory="true"
+                     confirm-callback="confirmCallback" return-callback="returnCallback"
+                     message-converter="messageConverter"/>
+
+</beans>
